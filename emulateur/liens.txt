@@ -1,0 +1,2 @@
+https://github.com/AlpacaMax/Python-CHIP8-Emulator/tree/master
+https://github.com/JohnEarnest/Octo
