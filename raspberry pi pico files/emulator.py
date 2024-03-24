@@ -1,14 +1,83 @@
+##################################################################
+#                                                                #
+# ---------------- émulateur CHIP-8 micropython ---------------- #
+# ------------------------ par raphatex ------------------------ #
+#                                                                #
+##################################################################
+#                                                                #
+# ---------- basé sur l'émulateur pygame de AlpacaMax ---------- #
+# https://github.com/AlpacaMax/Python-CHIP8-Emulator/tree/master #
+#                                                                #
+# modifications:                                                 #
+# - adaptation pour Raspberry pi PICO                            #
+# - adaptation à un écran 128*64 ssd1309                         #
+# - ajout du son à partir d'un buzzer                            #
+# - ajout d'une fonction de sauvegarde de l'état du jeu          #
+# - possibilité de configurer les touches pour chaque jeu        #
+# - possibilité de mettre pause                                  #
+#                                                                #
+##################################################################
+
 import random
 from utime import ticks_ms
 from machine import Pin, SPI, PWM
 from ssd1309 import Display
+from xglcd_font import XglcdFont
 from buttons import lecture_touche
+import sys
+import pinout
+from time import sleep
 
-#buzzer = PWM(Pin(15))
-#buzzer.freq(500)
+if pinout.SD_READER:
+    root = "/sd/"
+else:
+    root = ""
 
-spi_display = SPI(1, baudrate=10000000, sck=Pin(14), mosi=Pin(11))
-display = Display(spi_display, dc=Pin(29), cs=Pin(28), rst=Pin(27))
+buzzer = PWM(pinout.PIN_BUZZ)
+buzzer.freq(500)
+
+liste_bouton = [0,0,0,0,0,0]
+
+#pin_gauche = Pin(9, mode=Pin.IN, pull=Pin.PULL_UP)
+#pin_droite = Pin(5, mode=Pin.IN, pull=Pin.PULL_UP)
+#pin_bas = Pin(4, mode=Pin.IN, pull=Pin.PULL_UP)
+#pin_haut = Pin(12, mode=Pin.IN, pull=Pin.PULL_UP)
+#pin_A = Pin(14, mode=Pin.IN, pull=Pin.PULL_UP)
+#pin_B = Pin(15, mode=Pin.IN, pull=Pin.PULL_UP)
+
+def A_isr(pin):
+    global liste_bouton
+    liste_bouton[4]=1
+
+def B_isr(pin):
+    global liste_bouton
+    liste_bouton[5]=1
+
+def haut_isr(pin):
+    global liste_bouton
+    liste_bouton[3]=1
+
+def droite_isr(pin):
+    global liste_bouton
+    liste_bouton[2]=1
+
+def bas_isr(pin):
+    global liste_bouton
+    liste_bouton[1]=1
+
+def gauche_isr(pin):
+    global liste_bouton
+    liste_bouton[0]=1
+  
+#pin_gauche.irq(trigger=Pin.IRQ_FALLING,handler=gauche_isr)
+#pin_droite.irq(trigger=Pin.IRQ_FALLING,handler=droite_isr)
+#pin_haut.irq(trigger=Pin.IRQ_FALLING,handler=haut_isr)
+#pin_bas.irq(trigger=Pin.IRQ_FALLING,handler=bas_isr)
+#pin_A.irq(trigger=Pin.IRQ_FALLING,handler=A_isr)
+#pin_B.irq(trigger=Pin.IRQ_FALLING,handler=B_isr)
+
+spi_display = SPI(pinout.SPI_ID, baudrate=10000000, sck=pinout.PIN_D0, mosi=pinout.PIN_D1)
+display = Display(spi_display, dc=pinout.PIN_A0, cs=pinout.PIN_CS, rst=pinout.PIN_RST)
 
 class Register:
     def __init__(self, bits):
@@ -33,6 +102,9 @@ class Register:
     
     def readValue(self):
         return hex(self.value)
+    
+    def readSave(self):
+        return self.value
     
     def setValue(self, value):
         self.value = value
@@ -70,6 +142,12 @@ class Stack:
     
     def pop(self):
         return self.stack.pop()
+    
+    def get(self):
+        return self.stack
+
+    def load(self, stack_save):
+        self.stack = stack_save
 
 class Emulator:
     def __init__(self):
@@ -106,33 +184,27 @@ class Emulator:
         self.ProgramCounter = 0x200
 
         self.stack = Stack()
+        self.playing = 1
+        self.pause = 0
 
         self.delayTimer = DelayTimer()
-#        self.soundTimer = SoundTimer()
+        self.soundTimer = SoundTimer()
         
         self.lastime = ticks_ms()
         
-        self.lastKey = '0'
+        self.label_bouton = ["gauche","bas","droite","haut","A","B"]
+        
+        self.lastKey = 'A'
         self.keys = []
         for i in range(0, 16):
             self.keys.append(False)
         self.keyDict = {
-            '1' : 1,
-            '2' : 2,
-            '3' : 3,
-            'C' : 0xc,
-            '4' : 4,
-            '5' : 5,
-            '6' : 6,
-            'D' : 0xd,
-            '7' : 7,
-            '8' : 8,
-            '9' : 9,
-            '*' : 0xe,
-            'A' : 0xa,
-            '0' : 0,
-            'B' : 0xb,
-            '#' : 0xf
+            'haut' : 2,
+            'gauche' : 4,
+            'A' : 5,
+            'droite' : 6,
+            'bas' : 8,
+            'B' : 0xf
         }
 
         self.grid = []
@@ -141,14 +213,13 @@ class Emulator:
             for j in range(64):
                 line.append(0)
             self.grid.append(line)
-        self.emptyGrid = self.grid[:]
 
         self.size = 2
         width = 64
         height = 32
         display.clear()
         display.present()
-    
+        
     def execOpcode(self, opcode):
         #print(opcode)
 
@@ -169,8 +240,12 @@ class Emulator:
                 elif opcode == '00ee':
                     #00EE
                     #return;
+                    try:
+                        self.ProgramCounter = self.stack.pop()
+                    except:
+                        self.playing = 0
+                        print("stop playing")
 
-                    self.ProgramCounter = self.stack.pop()
         
         elif opcode[0] == '1':
             #1NNN
@@ -311,7 +386,6 @@ class Emulator:
                 v2 = int(opcode[2], 16)
 
                 self.Registers[v1].value = self.Registers[v2].value - self.Registers[v1].value
-
                 self.Registers[0xf].value = self.Registers[v1].checkBorrow()
             
             elif opcode[3] == 'e':
@@ -443,9 +517,9 @@ class Emulator:
                 #sound_timer(Vx)
 
                 Vx = int(opcode[1], 16)
-#                value = self.Registers[Vx].value
+                value = self.Registers[Vx].value
 
-#                self.soundTimer.setTimer(value)
+                self.soundTimer.setTimer(value)
             
             elif opcode[2:] == '1e':
                 #FX1E
@@ -519,14 +593,8 @@ class Emulator:
             line = ['0'] * fillNum + line
 
             spriteBits.append(line)
-        
-        '''
-        for i in spriteBits:
-            print(i)
-        '''
 
         for i in range(len(spriteBits)):
-            #line = ''
             for j in range(8):
                 try:
                     inversion = False
@@ -538,11 +606,9 @@ class Emulator:
                         display.fill_rectangle((Vx + j) * self.size, (Vy + i) * self.size, self.size, self.size, invert=inversion)
 
                     self.grid[Vy + i][Vx + j] = self.grid[Vy + i][Vx + j] ^ int(spriteBits[i][j])
-                    #line += str(int(spriteBits[i][j]))
                 except:
                     continue
 
-            #print(line)
                 
         display.present()
         return collision
@@ -555,13 +621,188 @@ class Emulator:
             for j in range(len(self.grid[0])):
                 self.grid[i][j] = 0
 
+
+    def loadSave(self):
+        bool_bouton = 0
+        bally = XglcdFont('fonts/Bally7x9.c', 7, 9)
+        display.draw_text(0, 20, "charger sauvegarde", bally)
+        display.fill_rectangle(19,40,25,11, invert = False)
+        display.draw_text(20, 40, "oui", bally, invert = True)
+        display.draw_text(80, 40, "non", bally)
+        choix = 1
+        display.present()
+        while lecture_touche()!= "A" and lecture_touche() != "start":
+            if lecture_touche() == "gauche" and bool_bouton == 0:
+                display.fill_rectangle(79,40,25,11, invert = True)
+                display.draw_text(80, 40, "non", bally, invert = False)
+                display.fill_rectangle(19,40,25,11, invert = False)
+                display.draw_text(20, 40, "oui", bally, invert = True)
+                display.present()
+                choix = 1
+                bool_bouton = 1
+                
+            elif lecture_touche() == "droite" and bool_bouton == 0:
+                display.fill_rectangle(19,40,25,11, invert = True)
+                display.draw_text(20, 40, "oui", bally, invert = False)
+                display.fill_rectangle(79,40,25,11, invert = False)
+                display.draw_text(80, 40, "non", bally, invert = True)
+                display.present()
+                choix = 0
+                bool_bouton = 1
+            
+            if lecture_touche() == None:
+                bool_bouton = 0
+                
+        display.clear()
+        display.present()
+            
+        return choix
+
+    def Convert(self, i):
+        if i <= 57:
+            i -= 48
+        else:
+            i -= 87
+        return i
+    
+
     def readProg(self, filename):
-        rom = self.convertProg(filename)
         
-        offset = int('0x200', 16)
-        for i in rom:
-            self.Memory[offset] = i
-            offset += 1
+        self.filename = filename
+        begin = 6
+        if pinout.SD_READER:
+            begin = 10
+            
+        self.saveName = root + "saves/" + self.filename[begin:len(self.filename)-3]+"sav"
+        self.keyFile = root + "games/" + self.filename[begin:len(self.filename)-4]
+        print(self.keyFile)
+        self.loadKeys()
+        
+        try:
+            f = open(self.saveName)
+        except:
+            print("pas de sauvegarde")
+            rom = self.convertProg(filename)
+            
+            offset = int('0x200', 16)
+            for i in rom:
+                self.Memory[offset] = i
+                offset += 1
+            
+        else:
+            if self.loadSave():
+                with open(self.saveName, 'rb') as f:
+                    wholeProgram = f.read()
+                    bit = 0
+                    reg = 0
+                    pc = 0
+                    multpc = 16**3
+                    multI = 16**3
+                    multStack = 16**3
+                    indexStack = 0
+                    stack_byte = 0
+                    delay_byte = 0
+                    x = 0
+                    y = 0
+                    stack = []
+                    offset = 0
+                    for i in wholeProgram:
+                        
+                        # ram
+                        if offset <= 4095:
+                            self.Memory[offset] = i
+                            offset += 1
+                            
+                        # 16 registres 8-bit
+                        elif offset >= 4096 and offset <= 4127:
+                            if bit == 0:
+                                highBits = self.Convert(i)
+                                bit = 1
+                            
+                            elif bit == 1:
+                                lowBits = self.Convert(i)
+                                self.Registers[reg].setValue(highBits*16+lowBits)
+                                reg += 1
+                                bit = 0
+                                
+                            offset += 1
+                        
+                        # registre I (16-bit)
+                        elif offset >= 4128 and offset <= 4131:
+                            i = self.Convert(i)
+                            self.IRegister.setValue(self.IRegister.readSave() + i*multI)
+                            multI = multI//16
+                            offset += 1
+
+                        # PC (16-bit)
+                        elif offset >= 4132 and offset <= 4135:
+                            i = self.Convert(i)
+                            pc += i*multpc
+                            multpc = multpc//16
+                            offset += 1
+                        
+                        # Timer (8-bit)
+                        elif offset == 4136 or offset == 4137:
+                            i = self.Convert(i)
+                                
+                            if delay_byte == 0:
+                                delay_byte = 1
+                                timer = i*16
+                            else:
+                                timer += i
+                                self.delayTimer.setTimer(timer)
+                           
+                            offset += 1
+                        
+                        # ecran
+                        elif offset >= 4138 and offset <= 6185:
+                            self.grid[y][x] = i
+                            
+                            x += 1
+                            if x == 64:
+                                x = 0
+                                y += 1
+                            
+                            offset += 1
+                            
+                        # stack (16-bit)
+                        else:
+                            i = self.Convert(i)
+                            
+                            stack_byte += i*multStack
+                            multStack = multStack//16
+                            indexStack += 1
+                            
+                            if indexStack == 4:
+                                stack.append(stack_byte)
+                                indexStack = 0
+                                stack_byte = 0
+                                multStack = 16**3
+                                
+                            offset += 1
+                            
+                            
+                self.stack.load(stack)
+                
+                self.ProgramCounter = pc
+                
+                for y in range(0, len(self.grid)):
+                    for x in range(0, len(self.grid[0])):
+                        if self.grid[y][x] == 1:
+                            display.fill_rectangle(x * self.size, y * self.size, self.size, self.size)
+                        
+                display.present()
+                print("sauvegarde chargée")
+                
+                
+            else:
+                rom = self.convertProg(filename)
+            
+                offset = int('0x200', 16)
+                for i in rom:
+                    self.Memory[offset] = i
+                    offset += 1
+        
     
     def convertProg(self, filename):
         rom = []
@@ -575,6 +816,19 @@ class Emulator:
         
         return rom
     
+    def loadKeys(self):
+        try:
+            KEYS = __import__(self.keyFile)
+        except:
+            print("pas de configuration")
+        else:
+            KEYS = __import__(self.keyFile)
+            list_keys = KEYS.keyDict.keys()
+            for x in list_keys:
+                print(str(KEYS.keyDict[x]) + " : " + x)
+                self.keyDict[x] = KEYS.keyDict[x]
+            print("configuration chargée")
+    
     def hexHandler(self, Num):
         newHex = hex(Num)[2:]
         if len(newHex) == 1:
@@ -583,36 +837,111 @@ class Emulator:
         return newHex
 
     def keyHandler(self):
-        '''
-        Chip8
-        -------
-        1 2 3 C
-        4 5 6 D
-        7 8 9 E
-        A 0 B F
-        '''
+        global liste_bouton
+        
         if ticks_ms() - self.lastime >= (1000/60):
             self.lastime = ticks_ms()
             self.delayTimer.countDown()
-#            self.soundTimer.countDown()
+            self.soundTimer.countDown()
         
         self.pin_value = lecture_touche()
         
-        if self.lastKey != self.pin_value:
-            targetKey = self.keyDict[self.lastKey]
-            self.keys[targetKey] = False
+        if self.pin_value == "start" and self.bool_start == 0:
+            self.pause = 1
+            display.fill_rectangle(50, 18, 28, 28, invert = True)
+            display.fill_rectangle(54, 22, 8, 20)
+            display.fill_rectangle(66, 22, 8, 20)
+            display.present()
+            self.bool_start = 1
             
-        if self.pin_value != None:
-            targetKey = self.keyDict[self.pin_value]
-            self.keys[targetKey] = True
-            self.lastKey = self.pin_value
+        if self.pin_value == None:
+            self.bool_start = 0
+        
+        if self.pin_value != "start" and self.pin_value != "home":
+            if self.lastKey != self.pin_value:
+                targetKey = self.keyDict[self.lastKey]
+                self.keys[targetKey] = False
+                
+            if self.pin_value != None:
+                targetKey = self.keyDict[self.pin_value]
+                self.keys[targetKey] = True
+                self.lastKey = self.pin_value
+        
+        #for i in range(len(self.label_bouton)):
+            #targetKey = self.keyDict[self.label_bouton[i]]
+            #if liste_bouton[i] == 1:
+                #print(self.label_bouton[i])
+                #self.keys[targetKey] = True
+                #liste_bouton[i] = 0
+                
+            #else:
+                #self.keys[targetKey] = False
+                
+
+    def fillZero(self, data, s):
+        if self.IRegister.readSave() <= 0xf:
+            s.write("0")
+        if self.IRegister.readSave() <= 0xff:
+            s.write("0")
+        if self.IRegister.readSave() <= 0xfff:
+            s.write("0")
 
     def mainLoop(self):
+        while lecture_touche() != "home" and self.playing == 1:
+            if self.pause == 0:
+                self.keyHandler()
+                self.soundTimer.beep()
+                self.execution()
+            else:
+                if lecture_touche() == "start" and self.bool_start == 0:
+                    self.pause = 0
+                    
+                    # on réimprime l'écran
+                    display.clear()
+                    for y in range(0, len(self.grid)):
+                        for x in range(0, len(self.grid[0])):
+                            if self.grid[y][x] == 1:
+                                display.fill_rectangle(x * self.size, y * self.size, self.size, self.size)
+                    display.present()
+                            
+                    self.bool_start = 1
+                elif lecture_touche() == None:
+                    self.bool_start = 0
         
-        while True:
-            self.keyHandler()
-#            self.soundTimer.beep()
-            self.execution()
+        buzzer.duty_u16(0)
+        with open(self.saveName, 'w') as s:
+            # on sauvegarde la memoire ram
+            s.write(bytearray(self.Memory))
+            
+            # on sauvegarde les 16 registres 8-bit
+            for i in range(0,16):
+                if self.Registers[i].readSave() <= 0xf:
+                    s.write("0")
+                s.write(str(self.Registers[i].readValue())[2:])
+                
+            # on sauvegarde le registre I de 16-bit
+            self.fillZero(self.IRegister.readSave(), s)
+            s.write(str(self.IRegister.readValue())[2:])
+            
+            # on sauvegarde le PC de 16-bit
+            self.fillZero(self.ProgramCounter, s)
+            s.write(str(hex(self.ProgramCounter))[2:])
+            
+            # on sauvegarde le delayTimer de 8-bit
+            if self.delayTimer.readTimer() <= 0xf:
+                    s.write("0")
+            s.write(str(hex(self.delayTimer.readTimer()))[2:])
+            
+            # on sauvegarde l'écran (chaque pixel prend 8bit)*128*64
+            for i in range(len(self.grid)):
+                s.write(bytearray(self.grid[i]))
+            
+            # on sauvegarde le stack (16 valeur max) de 16-bit
+            stack = self.stack.get()
+            for element in stack:
+                self.fillZero(element, s)
+                s.write(str(hex(element))[2:])
+    
             
         display.clear()
         display.present()

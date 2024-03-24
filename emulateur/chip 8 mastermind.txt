@@ -20,11 +20,11 @@
 		
 	loop
 	  v1 := -1
-		v0 := OCTO_KEY_W if v0 key then v1 := 0
+		v0 := OCTO_KEY_2 if v0 key then v1 := 0
     v0 := OCTO_KEY_S if v0 key then v1 := 1
-    v0 := OCTO_KEY_A if v0 key then v1 := 2
-    v0 := OCTO_KEY_D if v0 key then v1 := 3
-		v0 := OCTO_KEY_F if v0 key then v1 := 4
+    v0 := OCTO_KEY_Q if v0 key then v1 := 2
+    v0 := OCTO_KEY_E if v0 key then v1 := 3
+		v0 := OCTO_KEY_W if v0 key then v1 := 4
 		
 		if v1 == -1 then v2 := 1
 		
