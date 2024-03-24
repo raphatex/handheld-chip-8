@@ -1,0 +1,44 @@
+1.1	Le Raspberry pi pico
+
+Dans la description du projet sur célène, le microcontrôleur proposé était le Pi Pico de chez Raspberry dont voici les spécifications :
+
+-	Connecteur micro-USB
+-	Programmable en Micropython ou C++
+-	Processeur ARM Cortex-M0+ Dual Core à 133 MHz
+-	264 KB RAM
+-	2 MB mémoire flash en SPI
+-	23 GPIO (general purpose input / output)
+-	Niveau logique haut à 3.3V
+
+Ce microcontrôleur est le cerveau de notre projet, c’est lui qui permettra d’interfacer tous les autres composants.
+
+
+1.2	L’écran
+
+Ensuite, l’écran qui nous a été fourni était le « 2.42" OLED DISPLAY » de chez Joy-it, voici ses spécifications : 
+
+-	2.42 pouces
+-	Interface I2C, SPI, sérielle 6800 et 8080 
+-	Oled monochrome (jaune ou noir)
+-	90mA de consommation
+-	3 – 5V pour l’alimentation
+
+La technologie OLED de l’écran permet de réduire la consommation lorsque les pixels ne sont pas allumés, cela permet aussi d’avoir une meilleure vision au soleil ainsi que des angles de vision plus élevé qu’avec un écran LCD standard.
+Nous utiliserons l’écran avec son interface SPI, ce qui nous évite d’avoir à souder des pads.
+
+
+1.3	Le Lipo Shim
+
+Pour gérer l’alimentation de notre Pi Pico en mode portable nous avons choisi le module de chez Pimoroni qui est parfaitement adapté au Raspberry. Celui-ci viendra se souder directement à l’arrière du microcontroleur. Voici ses spécifications :
+
+-	Courant de charge fixé de 220mA 
+-	LED d’indication de charge
+-	ICs de protection
+-	Bouton marche-arrêt
+
+Mis à part le shéma électrique, il n'y a aucune information/datasheet sur ce module. Nous allons tout de même tenter d'expliquer brievement son fonctionnement, que nous avons compris par la rétro-ingénierie de celui-ci.
+
+IMAGE SCHEMATIC LIPO SHIM
+
+L'image XXX est issue du site de pimorini, elle représente le shéma électrique du module pico Shim. On y repère plusieurs circuits intégrés, le plus important étant le MCP73831/2 qui correspond au chargeur de batterie. La resistance R8 de 4K7 permet de fixer le courant de charge à 220mA. La LED CHARGE est celle qui s'allume lorsque l'on branche un cable usb. Le deuxieme CI est le XB6096I2S, celui-ci s'occupe de protéger la batterie, il protège celle ci contre l'inversion de polarité, contre la surcharge, contre les surintensités et contre les court-circuits. Ce CI va permettre d'augmenter la durée de vie de notre batterie LiPo. Enfin, nous pouvons reperer un D-Latch dans la partie "Power switch toggle circuit", il va nous permettre d'allumer et d'éteindre le Raspberry avec un seul bouton poussoir (S1).
+On peut remarquer que le module utilise 3 broches d'alimentations du Pico, à savoir : VBUS, VSYS et 3V3. 3V3 est seulement utilisé par la led blanche et sert à indiqué que le raspberry est allumé. Pour les deux autres c'est un peu plus compliqué, pour comprendre leur utilisation nous avons inclu une photo du shéma électrique du Pico, plus précisément, la partie alimentation de celui-ci.
