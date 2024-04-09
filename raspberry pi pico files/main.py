@@ -1,22 +1,40 @@
 from machine import Pin, SPI
 from ssd1309 import Display
 import pinout
-from buttons import lecture_touche
-import uos
-from time import sleep_us, sleep
-from utime import ticks_ms
-from random import randint
+
+# organisation des fichiers :
+# root/ ---------------------- (sd/ ou Raspberry Pi Pico)
+# ├──settings.cfg
+# ├──Games/
+# │  ├──default.py ----------- (fichier de configuration des touches à copier)
+# │  ├──jeu1.ch8
+# │  ├──jeu2.ch8
+# │  ├──jeu3.ch8
+# │  └──jeu2.py -------------- (fichier de configuration des touches pour "jeu2.ch8")
+# ├──Saves/
+# │  ├──jeu1.sav
+# │  └──jeu2.sav
+# ├──Music/
+# │  ├──autosave.mp7
+# │  ├──son1.mp7
+# │  └──son2.mp7
+# └──Python/
+#    ├──fichier1.py
+#    └──fichier2.py
 
 spi_display = SPI(pinout.SPI_ID, baudrate=10000000, sck=pinout.PIN_D0, mosi=pinout.PIN_D1)
 display = Display(spi_display, dc=pinout.PIN_A0, cs=pinout.PIN_CS, rst=pinout.PIN_RST)
 
 display.fill_rectangle(0, 0, 127, 63)
 display.present()
+
+from buttons import lecture_touche
+import uos
+from time import sleep_us, sleep
+from utime import ticks_ms
+from random import randint
 from xglcd_font import XglcdFont
 bally = XglcdFont('fonts/Bally7x9.c', 7, 9)
-from emulator import Emulator
-from beatmaker import BeatMaker
-
 
 if pinout.SD_READER:
     import sdcard
@@ -25,7 +43,7 @@ if pinout.SD_READER:
     cs = Pin(pinout.SD_CS, Pin.OUT)
      
     # Intialize SPI peripheral (start with 1 MHz)
-    spi = SPI(1,baudrate=1000000,polarity=0,phase=0,bits=8,firstbit=SPI.MSB,sck=pinout.SD_SCLK,mosi=pinout.SD_MOSI,miso=pinout.SD_MISO)
+    spi = SPI(pinout.SD_SPI_ID,baudrate=1000000,polarity=0,phase=0,bits=8,firstbit=SPI.MSB,sck=pinout.SD_SCLK,mosi=pinout.SD_MOSI,miso=pinout.SD_MISO)
     
     # Initialize SD card
     sd = sdcard.SDCard(spi, cs)
@@ -59,21 +77,26 @@ class Fichiers:
     
     def launch(self, filename, folder):
         display.clear()
-        display.draw_bitmap("images/" "polytech" ".mono", 0, 0, 128, 50, invert=False)
-        display.present()
-        nb=1
-        tps=0.125
-        sleep(0.05)
-        i1=False
-        i2=True
-        t=True
-        while nb<120:
-            display.draw_hline(3,50, nb, invert=False)
-            nb=nb+1
+        
+        param = readSettings()
+        ANIMATION = param[0]
+        
+        if ANIMATION:
+            display.draw_bitmap("images/" "polytech" ".mono", 0, 0, 128, 50, invert=False)
             display.present()
-            sleep(tps)
-            tps=tps+0.005
-            tps=tps*0.6
+            nb=1
+            tps=0.125
+            sleep(0.05)
+            i1=False
+            i2=True
+            t=True
+            while nb<120:
+                display.draw_hline(3,50, nb, invert=False)
+                nb=nb+1
+                display.present()
+                sleep(tps)
+                tps=tps+0.005
+                tps=tps*0.6
             
         display.present()
         chip8 = Emulator()
@@ -98,6 +121,7 @@ class Fichiers:
             menu.append("nouveau son")
             fichiers_jeux.append("nouveau fichier")
         elif app == 3:
+            # fichiers python
             ext = "py"
 
             
@@ -114,7 +138,6 @@ class Fichiers:
             menu_sans_emplacements.append(o)
         for i in range(200):
             menu.append(" ")
-
 
         delai = 500
         y = 0
@@ -175,6 +198,8 @@ class Fichiers:
                     if fichiers_jeux[i] != "nouveau fichier":
                         beatmaker.read(root+folder+"/"+fichiers_jeux[i])
                     beatmaker.mainloop()
+                elif app == 3:
+                    __import__(root+"python/"+fichiers_jeux[i][0:len(fichiers_jeux[i])-3:])
                 
                 display.clear()
                 display.present()
@@ -243,8 +268,31 @@ class Fichiers:
                 booleen_touche = 0
                 
 
+def readSettings():
+# fonction pour lire le fichier settings.cfg
+# renvoie un tuple avec les booléens ANIMATION et SOUND
+
+    ANIMATION = 1
+    SOUND = 1
+    try:
+        with open(root+"/settings.cfg", 'r') as s:
+            file = s.read()
+    except:
+        pass
+    else:
+        with open(root+"/settings.cfg", 'r') as s:
+            file = s.read()
+            
+            if file[10] == '0':
+                ANIMATION = 0
+            if file[18] == '0':
+                SOUND = 0
+    return ANIMATION,SOUND
+
 
 class Menu:
+# menu principal avec les 4 icones
+    
     def __init__(self):
         self.fichiers = Fichiers()
         self.choix = 1
@@ -266,6 +314,8 @@ class Menu:
         display.fill_circle((size_rect)//2+x_rect, (size_rect)//2+y_rect, size_rect//4, invert=False)
 
     def loadChoix(self,choix, droite):
+    # fonction qui gere les animations des icones quand elles bougent
+    
         x_rect = 3
         y_rect = 12
         size_rect = 21
@@ -310,6 +360,8 @@ class Menu:
         
         
     def DrawTriangles(self, size_triangle, inversion):
+    # fonction qui dessine les deux triangles à gauche et à droite de l'icone sélectionnée
+        
         x_triangle = 31
         x_triangle_2 = 122-x_triangle
         y_triangle = 23
@@ -392,11 +444,11 @@ class Menu:
                 if self.choix == 0:
                     self.settings()
                 elif self.choix == 1:
-                    self.fichiers.loop("games",self.choix)
+                    self.fichiers.loop("Games",self.choix)
                 elif self.choix == 2:
-                    self.fichiers.loop("music",self.choix)
+                    self.fichiers.loop("Music",self.choix)
                 elif self.choix == 3:
-                    self.fichiers.loop("python",self.choix)
+                    self.fichiers.loop("Python",self.choix)
                 
                 
                 display.clear()
@@ -415,19 +467,31 @@ class Menu:
                 bool_bouton = 0
 
     def settings(self):
+    # fonction qui gere la fenêtre des parametres
+        
         display.clear()
         bool_touche = 1
+        param = readSettings()
+        ANIMATION = param[0]
+        SOUND = param[1]
         display.draw_rectangle(0, 0, 127, 63, invert=False)
-        display.fill_rectangle(26, 14, 70, 11, invert=False)
-        display.draw_rectangle(10, 14, 11, 11, invert=False)
-        display.draw_line(12, 16, 18, 22)
-        display.draw_line(12, 22, 18, 16)
-        display.draw_text(27, 15, "animations", bally, invert=True)
-        display.draw_text(27, 35, "retour", bally, invert=False)
+        display.fill_rectangle(26, 9, 70, 11, invert=False)
+        display.draw_rectangle(10, 9, 11, 11, invert=False)
+        if ANIMATION:
+            display.draw_line(12, 11, 18, 17)
+            display.draw_line(12, 17, 18, 11)
+            
+        display.draw_rectangle(10, 24, 11, 11, invert=False)
+        if SOUND:
+            display.draw_line(12, 26, 18, 32)
+            display.draw_line(12, 32, 18, 26)
+            
+        display.draw_text(27, 10, "animations", bally, invert=True)
+        display.draw_text(27, 25, "son", bally, invert=False)
+        display.draw_text(27, 40, "retour", bally, invert=False)
         display.present()
         choix = 0
         echap = True
-        animation = 1
         
         while echap:
             touche = lecture_touche()
@@ -438,111 +502,86 @@ class Menu:
                 bool_touche = 1
                 if choix == 0:
                     choix = 1
-                    display.fill_rectangle(26, 11, 70, 41, invert=True)
-                    display.draw_text(27, 15, "animations", bally, invert=False)
-                    display.fill_rectangle(26, 34, 70, 11, invert=False)
-                    display.draw_text(27, 35, "retour", bally, invert=True)
+                    display.fill_rectangle(26, 6, 70, 40, invert=True)
+                    display.draw_text(27, 10, "animations", bally, invert=False)
+                    display.fill_rectangle(26, 24, 70, 11, invert=False)
+                    display.draw_text(27, 25, "son", bally, invert=True)
+                    display.draw_text(27, 40, "retour", bally, invert=False)
+                    display.present()
+                    
+                elif choix == 1:
+                    choix = 2
+                    display.draw_text(27, 10, "animations", bally, invert=False)
+                    display.fill_rectangle(26, 24, 70, 20, invert=True)
+                    display.draw_text(27, 25, "son", bally, invert=False)
+                    display.fill_rectangle(26, 39, 70, 11, invert=False)
+                    display.draw_text(27, 40, "retour", bally, invert=True)
                     display.present()
                     
             elif touche == "haut" and bool_touche == 0:
                 bool_touche = 1
                 if choix == 1:
                     choix = 0
-                    display.fill_rectangle(26, 11, 70, 41, invert=True)
-                    display.fill_rectangle(26, 14, 70, 11, invert=False)
-                    display.draw_text(27, 15, "animations", bally, invert=True)
-                    display.draw_text(27, 35, "retour", bally, invert=False)
+                    display.fill_rectangle(26, 9, 70, 11, invert=False)
+                    display.fill_rectangle(26, 24, 70, 35, invert=True)
+                    display.draw_text(27, 10, "animations", bally, invert=True)
+                    display.draw_text(27, 25, "son", bally, invert=False)
+                    display.draw_text(27, 40, "retour", bally, invert=False)
+                    display.present()
+                elif choix == 2:
+                    choix = 1
+                    display.fill_rectangle(26, 30, 70, 22, invert=True)
+                    display.draw_text(27, 10, "animations", bally, invert=False)
+                    display.fill_rectangle(26, 24, 70, 11, invert=False)
+                    display.draw_text(27, 25, "son", bally, invert=True)
+                    display.draw_text(27, 40, "retour", bally, invert=False)
                     display.present()
                 
             elif touche == "A" and bool_touche == 0:
                 bool_touche = 1
-                if choix == 1:
+                if choix == 2:
                     echap = 0
-                else:
-                    animation = not(animation)
-                    if animation:
-                        display.draw_line(12, 16, 18, 22)
-                        display.draw_line(12, 22, 18, 16)
+                elif choix == 0:
+                    ANIMATION = not(ANIMATION)
+                    if ANIMATION:
+                        display.draw_line(12, 11, 18, 17)
+                        display.draw_line(12, 17, 18, 11)
                         display.present()
                     else:
-                        display.fill_rectangle(11, 15, 9, 9, invert=True)
+                        display.fill_rectangle(11, 10, 9, 9, invert=True)
                         display.present()
+                    sleep(0.2)
                 
-                with open(root+"/settings.cfg", 'w') as s:
-                    s.write("animation:" + str(animation))
-                sleep(0.1)
-            
+                elif choix == 1:
+                    SOUND = not(SOUND)
+                    if SOUND:
+                        display.draw_line(12, 26, 18, 32)
+                        display.draw_line(12, 32, 18, 26)
+                        display.present()
+                    else:
+                        display.fill_rectangle(11, 25, 9, 9, invert=True)
+                        display.present()
+                    sleep(0.2)
                 
             elif (touche == "home" or touche =="B") and bool_touche == 0:
                 echap = 0
-
-
-test=XglcdFont('fonts/Unispace12x24.c', 12, 24)
-Wendy = XglcdFont('fonts/Wendy7x8.c', 7, 8)
-
-display.fill_rectangle(0,0, 128, 64, invert=False)
-delai = 1000
-y=10
-x = 10
-for char in "GAMECHEAP":
-    for i in range (7):
-        random = chr(randint(97,122))
-        display.draw_letter(x, y, random, test,invert=True)
-        display.present()
-            
-        display.fill_rectangle(x,y,12,24, invert=False)
-        display.present()
-        sleep_us(delai)
-    display.draw_letter(x, y, char, test,invert=True)
-    x += 12
-    display.present()
-delai = int(delai*0.70)
-sleep(0.3)
-y=55
-x = 15
-for char in "Polytech inc.":
-    for i in range (7):
-        random = chr(randint(97,122))
-        display.draw_letter(x, y, random, Wendy,invert=True)
-        display.present()
-            
-        display.fill_rectangle(x,y,7,8, invert=False)
-        display.present()
-        sleep_us(delai)
-    display.draw_letter(x, y, char, Wendy,invert=True)
-    x += 8
-    display.present()
-delai = int(delai*0.70)
-
-Robotron = XglcdFont('fonts/Robotron7x11.c', 7, 11)
-
-main_menu = Menu()
-
-display.clear()
-display.fill_rectangle(0,0, 128, 64, invert=True)
-display.draw_text(10,10,"GAMECHEAP",test)
-display.present()
-sleep(0.3)
-
-
-delai = 1000
-y=50
-x = 20
-for char in "Press start":
-    for i in range (7):
-        random = chr(randint(97,122))
-        display.draw_letter(x, y, random, Robotron)
-        display.present()
-            
-        display.fill_rectangle(x,y,7,11, invert = True)
-        display.present()
-        sleep_us(delai)
-    display.draw_letter(x, y, char, Robotron)
-    x += 8
-    display.present()
-delai = int(delai*0.70)
-display.present()
-
+        
+        if ANIMATION == 1:
+            ANIMATION_text = '1'
+        else:
+            ANIMATION_text = '0'
+        
+        if SOUND == 1:
+            SOUND_text = '1'
+        else:
+            SOUND_text = '0'
+        
+        with open(root+"/settings.cfg", 'w') as s:
+            s.write("ANIMATION:" + ANIMATION_text)
+            s.write("\n")
+            s.write("SOUND:" + SOUND_text)
+        sleep(0.1)
+           
 def prettyText():
     # "press start" qui bouge
     while lecture_touche()!="start":
@@ -586,8 +625,82 @@ def prettyText():
         sleep(0.15)
     return 1
 
-prettyText()
-display.clear()
-sleep(0.1)
+param = readSettings()
+ANIMATION = param[0]
+SOUND = param[1]
 
+if ANIMATION:
+    test=XglcdFont('fonts/Unispace12x24.c', 12, 24)
+    Wendy = XglcdFont('fonts/Wendy7x8.c', 7, 8)
+
+    display.fill_rectangle(0,0, 128, 64, invert=False)
+    delai = 1000
+    y=10
+    x = 10
+    for char in "GAMECHEAP":
+        for i in range (7):
+            random = chr(randint(97,122))
+            display.draw_letter(x, y, random, test,invert=True)
+            display.present()
+                
+            display.fill_rectangle(x,y,12,24, invert=False)
+            display.present()
+            sleep_us(delai)
+        display.draw_letter(x, y, char, test,invert=True)
+        x += 12
+        display.present()
+    delai = int(delai*0.70)
+    Robotron = XglcdFont('fonts/Robotron7x11.c', 7, 11)
+    y=55
+    x = 15
+    for char in "Polytech inc.":
+        for i in range (7):
+            random = chr(randint(97,122))
+            display.draw_letter(x, y, random, Wendy,invert=True)
+            display.present()
+                
+            display.fill_rectangle(x,y,7,8, invert=False)
+            display.present()
+            sleep_us(delai)
+        display.draw_letter(x, y, char, Wendy,invert=True)
+        x += 8
+        display.present()
+    delai = int(delai*0.70)
+
+    from emulator import Emulator
+    from beatmaker import BeatMaker
+
+    display.clear()
+    display.fill_rectangle(0,0, 128, 64, invert=True)
+    display.draw_text(10,10,"GAMECHEAP",test)
+    display.present()
+    sleep(0.3)
+
+
+    delai = 1000
+    y=50
+    x = 20
+    for char in "Press start":
+        for i in range (7):
+            random = chr(randint(97,122))
+            display.draw_letter(x, y, random, Robotron)
+            display.present()
+                
+            display.fill_rectangle(x,y,7,11, invert = True)
+            display.present()
+            sleep_us(delai)
+        display.draw_letter(x, y, char, Robotron)
+        x += 8
+        display.present()
+    delai = int(delai*0.70)
+    display.present()
+
+    prettyText()
+    
+else:
+    from emulator import Emulator
+    from beatmaker import BeatMaker
+    
+display.clear()
+main_menu = Menu()
 main_menu.loop()

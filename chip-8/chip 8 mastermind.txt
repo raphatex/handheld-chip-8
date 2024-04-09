@@ -1,0 +1,416 @@
+: main
+	i := chiffres
+	v0 := random 5
+	v1 := random 5
+	v2 := random 5
+	v3 := random 5
+	save v3
+	
+	vB := v0
+	vC := v1
+	vD := v2
+	vE := v3
+
+	v5 := 0
+	v6 := 1
+
+	draw_zeros
+
+	v7 := 0
+		
+	loop
+	  v1 := -1
+		v0 := OCTO_KEY_2 if v0 key then v1 := 0
+    v0 := OCTO_KEY_S if v0 key then v1 := 1
+    v0 := OCTO_KEY_Q if v0 key then v1 := 2
+    v0 := OCTO_KEY_E if v0 key then v1 := 3
+		v0 := OCTO_KEY_W if v0 key then v1 := 4
+		
+		if v1 == -1 then v2 := 1
+		
+		if v2 == 1 begin  # ready to read input
+			if v1 == 1 begin
+				i := carre
+				sprite v5 v6 7
+				if v7 == 3 begin 
+					v7 := 0
+					v6 := 0
+				else
+					v7 += 1
+					v6 += 6
+				end
+				sprite v5 v6 7
+				v2 := -1
+			end
+			
+			if v1 == 0 begin
+				i := carre
+				sprite v5 v6 7
+				if v7 == 0 begin 
+					v7 := 3
+					v6 := 18
+				else
+					v7 -= 1
+					v6 -= 6
+				end
+				sprite v5 v6 7
+				v2 := -1
+			end
+			
+			if v1 == 3 begin
+				i := chiffres_joueur
+				i += v7
+				load v0
+				v4 := 0
+				: for_2
+					if v0 >= 1 begin
+						v4 += 5
+						v0 -= 1
+						jump for_2
+					end
+				i := digits
+				i += v4
+				v5 += 1
+				v6 += 1
+				sprite v5 v6 5
+				
+				i := chiffres_joueur
+				i += v7
+				load v0
+				if v0 == 5 begin 
+					v0 := 0
+				else 
+					v0 += 1
+				end
+				i := chiffres_joueur
+				i += v7
+				save v0
+				v4 := 0
+				: for_3
+					if v0 >= 1 begin
+						v4 += 5
+						v0 -= 1
+						jump for_3
+					end
+				i := digits
+				i += v4
+				sprite v5 v6 5
+				
+				v5 -= 1
+				v6 -= 1
+				v2 := -1
+			end
+			
+			if v1 == 2 begin
+				i := chiffres_joueur
+				i += v7
+				load v0
+				v4 := 0
+				: for_4
+					if v0 >= 1 begin
+						v4 += 5
+						v0 -= 1
+						jump for_4
+					end
+				i := digits
+				i += v4
+				v5 += 1
+				v6 += 1
+				sprite v5 v6 5
+				
+				i := chiffres_joueur
+				i += v7
+				load v0
+				if v0 == 0 begin 
+					v0 := 5
+				else 
+					v0 -= 1
+				end
+				i := chiffres_joueur
+				i += v7
+				save v0
+				v4 := 0
+				: for_5
+					if v0 >= 1 begin
+						v4 += 5
+						v0 -= 1
+						jump for_5
+					end
+				i := digits
+				i += v4
+				sprite v5 v6 5
+				
+				v5 -= 1
+				v6 -= 1
+				v2 := -1
+			end
+			
+			if v1 == 4 begin  # quand on appuie sur F
+				if v8 == 8 begin
+					# perdu
+				else
+					i := carre
+					sprite v5 v6 7
+					
+					v4 := 0 # chiffres full bon
+					i := chiffres_joueur
+					load v3
+					if vB == v0 then v4 += 1
+					if vC == v1 then v4 += 1
+					if vD == v2 then v4 += 1
+					if vE == v3 then v4 += 1
+					if v4 == 4 begin # c'est gagné
+						clear
+						i := W
+						v5 := 20
+						v6 := 12
+						sprite v5 v6 8
+						v5 += 10
+						i := I
+						sprite v5 v6 8
+						v5 += 4
+						i := N
+						sprite v5 v6 8
+						return
+					end
+					
+					if v4 >= 1 begin
+						i := barre1
+						v9 := 25
+						sprite v5 v9 1
+					end
+					
+					if v4 >= 2 begin
+						i := barre2
+						v9 := 26
+						sprite v5 v9 5
+					end
+					
+					if v4 == 3 begin
+					  i := barre3
+						v9 := 31
+						sprite v5 v9 1
+					end
+					
+					if vB == v0 then vB += 10
+					if vC == v1 then vC += 10
+					if vD == v2 then vD += 10
+					if vE == v3 then vE += 10
+					
+					vA := 0 # nombre de chiffres mals placés
+					if vB == v1 begin
+						vB += 10
+						vA += 1
+						jump C
+						end
+					if vB == v2 begin
+						vB += 10
+						vA += 1
+						jump C
+						end
+					if vB == v3 begin 
+						vB += 10
+						vA += 1
+						end
+						
+: C
+					if vC == v0 begin 
+						vC += 10
+						vA += 1
+						jump D
+						end
+					if vC == v2 begin 
+						vC += 10
+						vA += 1
+						jump D
+						end
+					if vC == v3 begin 
+						vC += 10
+						vA += 1
+						end
+
+: D
+					if vD == v1 begin 
+						vD += 10
+						vA += 1
+						jump E
+						end
+					if vD == v0 begin 
+						vD += 10
+						vA += 1
+						jump E
+						end
+					if vD == v3 begin 
+						vD += 10
+						vA += 1
+						end
+
+: E
+					if vE == v1 begin 
+						vE += 10
+						vA += 1
+						jump F
+						end
+					if vE == v2 begin 
+						vE += 10
+						vA += 1
+						jump F
+						end
+					if vE == v0 begin 
+						vE += 10
+						vA += 1
+						end
+: F
+					
+					if vB >= 8 then vB -= 10
+					if vC >= 8 then vC -= 10
+					if vD >= 8 then vD -= 10
+					if vE >= 8 then vE -= 10
+					
+					v5 += 3
+					v9 := 28
+					if vA == 1 begin
+						i := pixel1
+						sprite v5 v9 1
+					end
+					
+					if vA == 2 begin
+						i := pixel2
+						sprite v5 v9 1
+					end
+					
+					if vA == 3 begin
+						i := pixel3
+						sprite v5 v9 2
+					end
+					
+					if vA == 4 begin
+						i := pixel4
+						sprite v5 v9 2
+					end
+					
+					v7 := 0
+					v5 += 3
+					draw_zeros
+					v8 += 1
+				end
+				v2 := -1
+			end
+		end
+	again
+			
+: draw_zeros
+	v5 += 1
+	v6 += 1
+	i := chiffres_joueur
+	v0 := 0
+	v1 := 0
+	v2 := 0
+	v3 := 0
+	save v3
+
+	i := chiffres_joueur
+	v1 := 3
+	v6 := 1
+	v2 := -1
+	: printv0_1
+		load v0
+		# chiffre que l'on veut afficher dans v0
+		vA := 0
+		: for_1
+			if v0 >= 1 begin
+				vA += 5
+				v0 -= 1
+				jump for_1
+			end
+		i := digits
+		i += vA
+		# l'adresse est dans i
+
+	  sprite v5 v6 5
+		
+		if v1 >= 1 begin
+			v6 += 6
+			i := chiffres_joueur
+			v2 += 1
+			i += v2
+			v1 -= 1
+			jump printv0_1
+		end
+		
+		v5 -= 1
+		v6 -= 1
+		
+		i := carre
+		v6 := 0
+		sprite v5 v6 7
+		
+return
+	
+
+: chiffres
+	0x00 0x00 0x00 0x00
+	
+: chiffres_joueur
+	0x00 0x00 0x00 0x00
+
+: digits
+	0xF0 0x90 0x90 0x90 0xF0
+	0x20 0x60 0x20 0x20 0x70
+	0xF0 0x10 0xF0 0x80 0xF0 # i += 5 
+	0xF0 0x10 0xF0 0x10 0xF0
+	0x90 0x90 0xF0 0x10 0x10 
+	0xF0 0x80 0xF0 0x10 0xF0
+	0xF0 0x80 0xF0 0x90 0xF0
+	0xF0 0x10 0x20 0x40 0x40
+	0xF0 0x90 0xF0 0x90 0xF0
+	0xF0 0x90 0xF0 0x10 0xF0
+	
+: W
+ 0b00000000
+ 0b10000001
+ 0b10000001
+ 0b10000001
+ 0b10011001
+ 0b11011011
+ 0b01111110
+ 0b00100100
+: I
+ 0b00000000
+ 0b11000000
+ 0b11000000
+ 0b00000000
+ 0b11000000
+ 0b11000000
+ 0b11000000
+ 0b11000000
+: N
+ 0b00000000
+ 0b11000010
+ 0b11100010
+ 0b10110010
+ 0b10011010
+ 0b10001110
+ 0b10000110
+ 0b10000010
+
+: carre
+	0xFC 0xFC 0xFC 0xFC 0xFC 0xFC 0xFC # carré 6x7
+	
+: barre1
+	0xF8
+: barre2
+	0x80 0x80 0x80 0x80 0x80 0x80
+: barre3
+	0xF8
+	
+: pixel1
+	0x80
+: pixel2
+	0xC0
+: pixel3
+	0xC0 0x80
+: pixel4
+	0xC0 0xC0
+
+	

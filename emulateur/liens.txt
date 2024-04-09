@@ -1,5 +1,0 @@
-https://github.com/AlpacaMax/Python-CHIP8-Emulator/tree/master
-https://github.com/JohnEarnest/Octo
-https://www.zophar.net/pdroms/chip8/chip-8-games-pack.html
-https://github.com/kripod/chip8-roms
-https://github.com/Timendus/chip8-test-suite

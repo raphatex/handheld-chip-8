@@ -8,8 +8,6 @@ import pinout
 spi_display = SPI(pinout.SPI_ID, baudrate=10000000, sck=pinout.PIN_D0, mosi=pinout.PIN_D1)
 display = Display(spi_display, dc=pinout.PIN_A0, cs=pinout.PIN_CS, rst=pinout.PIN_RST)
 
-display.clear()
-
 buzzer = PWM(pinout.PIN_BUZZ)
 
 if pinout.SD_READER:
@@ -22,7 +20,7 @@ class BeatMaker:
     def __init__(self):
         self.bally = XglcdFont('fonts/Bally7x9.c', 7, 9)
         
-        self.vitesse = 10
+        self.vitesse = 9
         self.liste_note = [110, 116, 123, 131, 139, 147, 155, 165, 175, 185, 196, 208, 220, 233, 247, 262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 523, 554, 587, 622, 659]
 
         self.x = 10

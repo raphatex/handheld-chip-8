@@ -13,6 +13,7 @@ PIN_RST = Pin(17)
 
 # sd :
 SD_READER = 1
+SD_SPI_ID = 1
 SD_SCLK = Pin(10)
 SD_MOSI = Pin(11)
 SD_MISO = Pin(8)

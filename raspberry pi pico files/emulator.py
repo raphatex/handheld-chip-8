@@ -1,11 +1,11 @@
 ##################################################################
 #                                                                #
-# ---------------- émulateur CHIP-8 micropython ---------------- #
-# ------------------------ par raphatex ------------------------ #
+# ---------------- émulateur CHIP-8 MicroPython ---------------- #
+# ------------------------ par Raphatex ------------------------ #
 #                                                                #
 ##################################################################
 #                                                                #
-# ---------- basé sur l'émulateur pygame de AlpacaMax ---------- #
+# ---------- basé sur l'émulateur Pygame de AlpacaMax ---------- #
 # https://github.com/AlpacaMax/Python-CHIP8-Emulator/tree/master #
 #                                                                #
 # modifications:                                                 #
@@ -19,7 +19,7 @@
 ##################################################################
 
 import random
-from utime import ticks_ms
+from utime import ticks_ms, ticks_us
 from machine import Pin, SPI, PWM
 from ssd1309 import Display
 from xglcd_font import XglcdFont
@@ -151,6 +151,19 @@ class Stack:
 
 class Emulator:
     def __init__(self):
+        self.SOUND = 1
+        try:
+            with open(root+"/settings.cfg", 'r') as s:
+                file = s.read()
+        except:
+            pass
+        else:
+            with open(root+"/settings.cfg", 'r') as s:
+                file = s.read()
+                print(file[18])
+                if file[18] == '0':
+                    self.SOUND = 0
+        
         self.Memory = []
         for i in range(0, 4096):
             self.Memory.append(0x0)
@@ -190,7 +203,7 @@ class Emulator:
         self.delayTimer = DelayTimer()
         self.soundTimer = SoundTimer()
         
-        self.lastime = ticks_ms()
+        self.lastime = ticks_us()
         
         self.label_bouton = ["gauche","bas","droite","haut","A","B"]
         
@@ -217,8 +230,6 @@ class Emulator:
         self.size = 2
         width = 64
         height = 32
-        display.clear()
-        display.present()
         
     def execOpcode(self, opcode):
         #print(opcode)
@@ -673,8 +684,8 @@ class Emulator:
         if pinout.SD_READER:
             begin = 10
             
-        self.saveName = root + "saves/" + self.filename[begin:len(self.filename)-3]+"sav"
-        self.keyFile = root + "games/" + self.filename[begin:len(self.filename)-4]
+        self.saveName = root + "Saves/" + self.filename[begin:len(self.filename)-3]+"sav"
+        self.keyFile = root + "Games/" + self.filename[begin:len(self.filename)-4]
         print(self.keyFile)
         self.loadKeys()
         
@@ -839,8 +850,8 @@ class Emulator:
     def keyHandler(self):
         global liste_bouton
         
-        if ticks_ms() - self.lastime >= (1000/60):
-            self.lastime = ticks_ms()
+        if ticks_us() - self.lastime >= (16670):
+            self.lastime = ticks_us()
             self.delayTimer.countDown()
             self.soundTimer.countDown()
         
@@ -890,7 +901,8 @@ class Emulator:
         while lecture_touche() != "home" and self.playing == 1:
             if self.pause == 0:
                 self.keyHandler()
-                self.soundTimer.beep()
+                if self.SOUND:
+                    self.soundTimer.beep()
                 self.execution()
             else:
                 if lecture_touche() == "start" and self.bool_start == 0:
