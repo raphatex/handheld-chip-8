@@ -87,9 +87,6 @@ class Fichiers:
             nb=1
             tps=0.125
             sleep(0.05)
-            i1=False
-            i2=True
-            t=True
             while nb<120:
                 display.draw_hline(3,50, nb, invert=False)
                 nb=nb+1
