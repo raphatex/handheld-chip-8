@@ -71,7 +71,7 @@ class Fichiers:
     def afficher(self, début,fin):
         y = 0
         display.clear()
-        for lignes in menu[début:fin:]:
+        for lignes in self.menu[début:fin:]:
             display.draw_text(0,y,lignes,bally,False)
             y += 10
     
@@ -105,12 +105,12 @@ class Fichiers:
     
     def changement_ligne(self,x,y,menu,i):
         display.fill_rectangle(x,y, 127, 9, invert=False)
-        display.draw_text(x,y,menu[i],self.bally,invert=True)
+        display.draw_text(x,y,self.menu[i],self.bally,invert=True)
         display.present()
 
 
     def loop(self, folder, app):
-        menu = []
+        self.menu = []
         fichiers_jeux=[]
         if app == 1:
             # chip 8
@@ -118,7 +118,7 @@ class Fichiers:
         elif app == 2:
             # beatmaker
             ext = "mp7"
-            menu.append("nouveau son")
+            self.menu.append("nouveau son")
             fichiers_jeux.append("nouveau fichier")
         elif app == 3:
             # fichiers python
@@ -129,19 +129,19 @@ class Fichiers:
             if file[-len(ext):]==ext:
                 fichiers_jeux.append(file)
                 if len(file)>21:
-                    menu.append(file[:17:]+"..")
+                    self.menu.append(file[:17:]+"..")
                 else:
-                    menu.append(file[:len(file)-len(ext)-1:])
+                    self.menu.append(file[:len(file)-len(ext)-1:])
         
-        menu_sans_emplacements=[]
-        for o in menu:
-            menu_sans_emplacements.append(o)
+        self.menu_sans_emplacements=[]
+        for o in self.menu:
+            self.menu_sans_emplacements.append(o)
         for i in range(200):
-            menu.append(" ")
+            self.menu.append(" ")
 
         delai = 500
         y = 0
-        for lignes in menu[0:6:]:
+        for lignes in self.menu[0:6:]:
             if lignes != " ":
                 x = 0
                 for char in lignes:
@@ -172,16 +172,16 @@ class Fichiers:
                 i=i-6
                 y=0
                 display.fill_rectangle(0,50, 127, 9, invert=True)
-                display.draw_text(0,50,menu[i+5],self.bally,invert=False)
+                display.draw_text(0,50,self.menu[i+5],self.bally,invert=False)
                 display.present()
-            elif menu[i]==" ":
+            elif self.menu[i]==" ":
                 x=0
                 display.fill_rectangle(0,50, 127, 9, invert=True)
-                display.draw_text(0,50,menu[i],self.bally,invert=False)
+                display.draw_text(0,50,self.menu[i],self.bally,invert=False)
                 display.present()
                 i=début
                 y=0
-            self.changement_ligne(x,y,menu,i)
+            self.changement_ligne(x,y,self.menu,i)
             
             touche = lecture_touche()
             if touche == None:
@@ -205,7 +205,7 @@ class Fichiers:
                 display.present()
                 delai = 500
                 y = 0
-                for lignes in menu[0:6:]:
+                for lignes in self.menu[0:6:]:
                     if lignes != " ":
                         x = 0
                         for char in lignes:
@@ -234,35 +234,36 @@ class Fichiers:
                 i=i+5    
                 y=50
                 display.fill_rectangle(0,0, 127, 9, invert=True)
-                display.draw_text(0,0,menu[i-5],self.bally,invert=False)
+                display.draw_text(0,0,self.menu[i-5],self.bally,invert=False)
                 display.present()
                 booleen_touche = 0
             elif touche=="haut" and y!=0 and booleen_touche == 1:
                 y=y-10
                 i=i-1
                 display.fill_rectangle(0,y+10, 127, 9, invert=True)
-                display.draw_text(0,y+10,menu[i+1],self.bally,invert=False)
+                display.draw_text(0,y+10,self.menu[i+1],self.bally,invert=False)
                 display.present()
                 booleen_touche = 0
             elif lecture_touche()=="bas" and booleen_touche == 1:
                 y=y+10
                 i=i+1
                 display.fill_rectangle(0,y-10, 127, 9, invert=True)
-                display.draw_text(0,y-10,menu[i-1],self.bally,invert=False)
+                display.draw_text(0,y-10,self.menu[i-1],self.bally,invert=False)
                 display.present()
                 booleen_touche = 0
-            elif touche=="droite" and len(menu_sans_emplacements)>=7 and booleen_touche == 1 and menu[i+7]!=" ":
+            elif touche=="droite" and len(self.menu_sans_emplacements)>=7 and booleen_touche == 1:
                 x=0
-                début=début+7
-                fin=fin+7
-                afficher(début,fin)
+                print(début)
+                début += 7
+                fin=fin +7
+                self.afficher(début,fin)
                 i=début
                 y=0
                 booleen_touche = 0
-            elif touche=="gauche" and len(menu_sans_emplacements)>=7 and début!=0 and booleen_touche == 1:
+            elif touche=="gauche" and len(self.menu_sans_emplacements)>=7 and début!=0 and booleen_touche == 1:
                 début=début-7
                 fin=fin-7
-                afficher(début,fin)
+                self.afficher(début,fin)
                 i=début
                 y=0
                 booleen_touche = 0
@@ -290,7 +291,7 @@ def readSettings():
     return ANIMATION,SOUND
 
 
-class Menu:
+class menu:
 # menu principal avec les 4 icones
     
     def __init__(self):
@@ -702,5 +703,5 @@ else:
     from beatmaker import BeatMaker
     
 display.clear()
-main_menu = Menu()
+main_menu = menu()
 main_menu.loop()
